@@ -1,5 +1,5 @@
 # Imagem base para o PHP-FPM
-FROM php:8.2-fpm
+FROM php:8.1-cli
 
 ENV COMPOSER_VERSION 2.2.7
 
@@ -12,7 +12,6 @@ RUN apt-get install -y \
     supervisor \
     cron \
     python3-pip \
-    python-setuptools \
     git \
     libzip-dev \
     zip \
@@ -28,19 +27,28 @@ RUN apt-get install -y \
     libwebp-dev \
     libfreetype6-dev \
     libgif-dev \
-    libxpm-dev 
+    libxpm-dev \
+    libmagickwand-dev
+
+# Instala extensões do php com PECL
+RUN pecl install imagick; \
+    docker-php-ext-enable imagick;
 
 # Instala extensões do php
 RUN docker-php-ext-install zip \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install gd \
-    && docker-php-ext-install mysqli pdo_mysql dom opcache curl intl xml
+    && docker-php-ext-install mysqli pdo_mysql dom opcache curl intl xml exif
 
 # Instala o Nginx
 RUN apt-get install -y nginx
 
 # Instala o Redis
 RUN pecl install redis && docker-php-ext-enable redis
+
+### Instalar e Habilitar o Swoole
+RUN pecl install swoole
+RUN docker-php-ext-enable swoole
 
 # Instala o Composer
 RUN curl -o /tmp/composer-setup.php https://getcomposer.org/installer \
@@ -58,7 +66,7 @@ RUN apt-get clean \
 COPY default.conf /etc/nginx/conf.d/default.conf
 
 # Configura o PHP-FPM para ser executado em um socket Unix
-RUN echo "listen = /var/run/php-fpm.sock" >> /usr/local/etc/php-fpm.d/www.conf
+#RUN echo "listen = /var/run/php-fpm.sock" >> /usr/local/etc/php-fpm.d/www.conf
 
 # Define o diretório de trabalho
 WORKDIR /var/www/html
@@ -68,7 +76,8 @@ COPY . /var/www/html
 
 # Exponha a porta 80 para o Nginx
 EXPOSE 80
-EXPOSE 8000
+EXPOSE 443
+#EXPOSE 8000
 
 # Criando diretorio log do supervisord
 RUN mkdir -p /var/log/supervisor && mkdir -p /var/run/supervisor
